@@ -1,0 +1,27 @@
+---
+- name: Install samba
+  apt:
+    name: samba
+    state: present
+    update_cache: yes
+
+- name: Share setting /etc/samba/smb.conf
+  blockinfile:
+    path: /etc/samba/smb.conf
+    block: |
+      [data]
+          path = /mnt/data
+          writeable = yes
+          public = yes
+          browseable = yes
+
+      [90day]
+          path = /mnt/90day
+          writeable = no
+          public = yes
+          browseable = yes
+
+- name: Restart samba service
+  systemd:
+    state: reloaded
+    name: smbd

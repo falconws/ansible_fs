@@ -1,0 +1,17 @@
+---
+- name: Install ruby
+  apt:
+    name: ruby
+    state: present
+    update_cache: yes
+
+- name: Copy pdumpfs script
+  copy:
+    src: pdumpfs
+    dest: /usr/local/bin/
+    mode: 0755
+- name: Copy pdumpfs-clean script
+  copy:
+    src: pdumpfs-clean
+    dest: /usr/local/bin/
+    mode: 0755

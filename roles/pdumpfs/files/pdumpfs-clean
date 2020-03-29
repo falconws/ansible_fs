@@ -1,0 +1,141 @@
+#!/usr/bin/ruby
+#
+# pdumpfs-clean: cleanup old backup directory for pdumpfs
+#
+# Usage:
+#   pdumpfs-clean <pdumpfs backuped directories...>
+#
+# Copyright(C) 2003 Taku YASUI <tach@debian.or.jp>, All rights reserved.
+# This is free software with ABSOLUTELY NO WARRANTY.
+#
+# You can redistribute it and/or modify it under the terms of 
+# the GNU General Public License version 2.
+#
+
+require 'getoptlong'
+require 'date'
+require 'fileutils'
+
+VERS = '$Id$'.sub(/^.*,v ([\d\.]+) .*$/, "\\1")
+DEFAULT = { 'year' => 2,
+	    'month' => 6,
+	    'week' => 6,
+	    'day' => 7 }
+
+def parse_options
+  options = Hash.new
+  parser = GetoptLong.new
+  parser.set_options(['--help',          '-h', GetoptLong::NO_ARGUMENT],
+		     ['--no-act',	 '-n', GetoptLong::NO_ARGUMENT],
+		     ['--verbose',	 '-v', GetoptLong::NO_ARGUMENT],
+		     ['--version',	 '-V', GetoptLong::NO_ARGUMENT],
+		     ['--force',	 '-f', GetoptLong::NO_ARGUMENT],
+		     ['--keep',		 '-k', GetoptLong::REQUIRED_ARGUMENT])
+  parser.each_option {|name, arg|
+    options[name.sub(/^--/, "")] = arg
+  }
+  show_version if options['version']
+  show_usage if options['help'] or ARGV[0].nil?
+  return options
+end
+
+def parse_keep(keep)
+  ch_tables = { 'year' => /(\d+)Y/,
+  		'month' => /(\d+)M/,
+		'week' => /(\d+)W/,
+		'day' => /(\d+)D/ }
+  ret = {}
+  ch_tables.each do |key, regex|
+    ret[key] = DEFAULT[key]
+    ret[key] = $1.to_i if ( regex.match(keep) )
+    ret[key] -= 1
+  end
+  return ret
+end
+
+def create_keepdirs(keep)
+  nowdate = Date.new(Time.now.year, Time.now.month, Time.now.day)
+  ret = []
+  # year
+  keep['year'].downto(0) do |i|
+    ret.push("#{Time.now.year-i}/01/01")
+  end
+  # month  
+  keep['month'].downto(0) do |i|
+    date = nowdate << i
+    ret.push("#{date.year}/#{sprintf("%02d", date.month)}/01")
+  end
+  # week
+  keep['week'].downto(0) do |i|
+  date = nowdate - nowdate.cwday - 7 * i
+    ret.push("#{date.year}/#{sprintf("%02d", date.month)}/#{sprintf("%02d", date.day)}")
+  end
+  # day
+  keep['day'].downto(0) do |i|
+    date = nowdate - i
+    ret.push("#{date.year}/#{sprintf("%02d", date.month)}/#{sprintf("%02d", date.day)}")
+  end
+  ret.sort.uniq
+end 
+
+def show_usage
+  print <<_EOT
+Usage: pdumpfs-clean [OPTIONS] directories...
+OPTIONS:
+  --help,              -h: show this help
+  --keep KEEPARGS,     -k: use KEEPARGS to decide delete directories
+  --no-act,            -n: run command but don't do it
+  --verbose,           -v: verbose output
+  --force,             -f: force to remove write-protected files/directories
+  --version,           -V: show software version
+KEEPARGS: [digitY][digitM][digitW][digitD]
+  ex: --keep 2Y6M6W7D (2years, 6months, 6weeks, 7days, default)
+_EOT
+  exit
+end
+
+def show_version
+  print <<_EOT
+pdumpfs-clean version #{VERS}
+Copyright (C) 2003 Taku YASUI <tach@debian.or.jp>
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or (at
+your option) any later version.
+_EOT
+  exit
+end
+
+def main
+
+  opts = parse_options
+  keepdirs = create_keepdirs(parse_keep(opts['keep']))
+  keeped = []
+
+  ARGV.each do |basedir|
+    Dir.glob("#{basedir}/[0-9][0-9][0-9][0-9]/[0-1][0-9]/[0-3][0-9]").sort.each do |dir|
+      next if ( ! File.directory?(dir) )
+      if ( keepdirs.index(dir.sub(%r!^#{basedir}/!, '')) )
+        keeped.push(dir)
+        next
+      end
+      print "Deleting #{dir} ..." if ( opts['verbose'] )
+      system('chmod', '-R', 'u+w', dir) if ( opts['force'] )
+      system('rm', '-rf', dir) if ( ! opts['no-act'] )
+      print " done.\n" if ( opts['verbose'] )
+    end
+    Dir.glob("#{basedir}/[0-9][0-9][0-9][0-9]/[0-1][0-9] #{basedir}/[0-9][0-9][0-9][0-9]").each do |dir|
+      Dir.rmdir(dir) if ( File.directory?(dir) && Dir.entries(dir).size <= 2 )
+    end
+    if ( opts['verbose'] )
+      puts "Keep dirs:"
+      keeped.each do |dir|
+        puts dir
+      end
+    end
+  end
+
+end
+
+main if __FILE__ == $0
