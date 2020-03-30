@@ -25,3 +25,11 @@
   systemd:
     state: reloaded
     name: smbd
+
+- name: chown nobody nogroup shared directory
+  file:
+    path: /mnt/data
+    owner: nobody
+    group: nogroup
+    recurse: yes
+    state: directory
