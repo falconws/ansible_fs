@@ -21,7 +21,7 @@
           public = yes
           browseable = yes
 
-- name: Restart samba service
+- name: Reload samba service
   systemd:
     state: reloaded
     name: smbd

@@ -2,7 +2,7 @@
 - name: Setup file and backup server
   hosts: all
   # remote_user: root
-  remote_user: plkadm
+  # remote_user: plkadm
   become: yes
   become_method: sudo
 

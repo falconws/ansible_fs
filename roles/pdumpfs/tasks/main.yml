@@ -15,3 +15,15 @@
     src: pdumpfs-clean
     dest: /usr/local/bin/
     mode: 0755
+- name: Copy backup.sh script
+  copy:
+    src: backup.sh
+    dest: /usr/local/bin/
+    mode: 0755
+
+- name: regist pdumpfs to cron
+  cron:
+    name: backup with pdumpfs
+    minute: "0"
+    hour: "0"
+    job: "/usr/local/bin/backup.sh"
